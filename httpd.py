@@ -13,26 +13,28 @@ d = location.Database("/var/lib/location/database.db")
 
 class MyServer(BaseHTTPRequestHandler):
     def do_GET(self):
-        try:
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-            ip = self.client_address[0]
-            #print(parse_headers(self.headers))
-            if self.headers.get('X-Forwarded-For') != None:
-                ip = self.headers.get('X-Forwarded-For')
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        ip = self.client_address[0]
+        #print(parse_headers(self.headers))
+        if self.headers.get('X-Forwarded-For') != None:
+            ip = self.headers.get('X-Forwarded-For')
 
-            headers = dict()
-            for i in self.headers:
-                headers[i] = self.headers.get(i)
+        ip = ip.replace(' ', '')
+        ip = ip.split(",")
 
-            n = d.lookup(ip)
-            dataSet = {"ip": ip, "country": n.country_code, "header": headers}
+        headers = dict()
+        for i in self.headers:
+            headers[i] = self.headers.get(i)
 
-            self.wfile.write(bytes(json.dumps(dataSet), "utf-8"))
-        except Exception as e:
-          print(e)
-          sys.exit(-1)
+        dataSet = {"ip": ip, "header": headers, "country": {}}
+        for i in ip:
+            n = d.lookup(i)
+            if hasattr(n, 'country_code'):
+                dataSet['country'][i] = n.country_code
+
+        self.wfile.write(bytes(json.dumps(dataSet), "utf-8"))
 
 if __name__ == "__main__":        
     webServer = HTTPServer((hostName, serverPort), MyServer)
